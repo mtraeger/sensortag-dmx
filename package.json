@@ -1,0 +1,38 @@
+{
+		"name":		   "dmx-artnet",
+		"version":	   "0.0.1",
+		"author":	   "Michael Träger <git@m.traeger-mail.de>",
+		"description": "DMX library and webservice via ArtNet with TI-Sensortag",
+		"url":		   "https://github.com/mtraeger/sensortag-dmx",
+		"main":		   "dmx.js",
+		"bin": {
+						"sensortag-accell":	 "./sensortagAccell.js",
+						"sensortag-dmx":	 "./sensortagDmx.js",
+						"sensortag-dmx-easing":	 "./sensortagDmxEasing.js",
+						"sensortag-dmx-temperature":	 "./sensortagDmxTemperature.js",
+						"dmx-animation-demo":	 "./animations.js",
+						"dmx-web":	 "./node_modules/node-dmx/dmx-web.js"
+		},
+		"repository": {
+				"type": "git",
+				"url": "https://github.com/mtraeger/sensortag-dmx.git"
+		},
+		"keywords": [
+				"DMX",
+				"light control",
+				"ArtNet",
+				"Art-Net",
+				"Sensortag"
+		],
+		"dependencies": {
+				"sensortag": "1.2.x",
+                "node-dmx": "1.0.x",
+                "artnet": "1.0.x"
+		},
+		"licenses": [
+				{
+						"name": "MIT",
+						"url": "http://www.opensource.org/licenses/mit-license.php"
+				}
+		]
+}
