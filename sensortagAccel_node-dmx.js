@@ -4,7 +4,7 @@ const program = require('commander');
 const SensorTag = require('sensortag');
 
 // patch dmx library with custom devices
-// DMX.devices = require('./node-dmx-custom-devices')
+DMX.devices = require('./node-dmx-custom-devices')
 
 
 //run as root for BLE
@@ -53,10 +53,7 @@ class DMXWrapper {
             const toUpdate = {};
             for (const device in config.universes[universe].devices) {
                 const dev = config.universes[universe].devices[device];
-                console.log(DMX.devices)
-                console.log(dev.type)
                 const deviceType = DMX.devices[dev.type];
-                console.log(deviceType)
 
                 const dimmerPosition = deviceType.channels.indexOf('dimmer');
                 if (dimmerPosition >= 0) {
@@ -97,6 +94,8 @@ class DMXWrapper {
                     toUpdate[bluePosition + dev.address] = blue;
                 }
                 this._dmx.update(universe, toUpdate);
+                //TODO alternative: use dmx.animation and add new value every second
+                //TODO use dmx-web rest interface
             }
         }
     }
@@ -105,104 +104,83 @@ class DMXWrapper {
 
 class SensortagDMX {
 
-    constructor(dmxWrapper) {
+    constructor(tag, dmxWrapper) {
+        this._tag = tag;
         this._dmx_wrapper = dmxWrapper;
+        this._mode = 'coloraxis';
+        this._strobo_on = false;
     }
 
-    start(tag) {
-        console.log('connected!')
+    start() {
+        console.log('Connected! Now starting SetUp of Sensor.')
 
-        tag.on('disconnect', () => this.onDisconnect());
+        this._tag.on('disconnect', () => this._onDisconnect());
+        this._tag.connectAndSetUp(() => this._setUpSensors());
+    }
 
-        // TODO tmp
-        var self = this;
+    _setUpSensors() {
+        this._tag.enableAccelerometer();
+        this._tag.setAccelerometerPeriod(100);
+        this._tag.notifyAccelerometer();
+        this._tag.notifySimpleKey();
 
-        var mode = 'coloraxis';
+        this._tag.on('accelerometerChange', (x, y, z) => {
+            console.log('\tx = %d G', x.toFixed(1));
+            console.log('\ty = %d G', y.toFixed(1));
+            console.log('\tz = %d G', z.toFixed(1));
+            this._chooseStrategy(x, y, z);
+        });
 
-        function connectAndSetUpMe() {			// attempt to connect to the tag
-            console.log('connectAndSetUp');
-            tag.connectAndSetUp(enableAccelMe);		// when you connect and device is setup, call enableAccelMe
-        }
-
-        function enableAccelMe() {		// attempt to enable the accelerometer
-            console.log('enableAccelerometer');
-            // when you enable the accelerometer, start accelerometer notifications:
-            tag.enableAccelerometer(notifyMe);
-            tag.setAccelerometerPeriod(100);
-        }
-
-        function notifyMe() {
-            tag.notifyAccelerometer(listenForAcc);   	// start the accelerometer listener
-            tag.notifySimpleKey(listenForButton);		// start the button listener
-        }
-
-        // When you get an accelermeter change, print it out:
-        function listenForAcc() {
-            tag.on('accelerometerChange', function (x, y, z) {
-                console.log('\tx = %d G', x.toFixed(1));
-                console.log('\ty = %d G', y.toFixed(1));
-                console.log('\tz = %d G', z.toFixed(1));
-                chooseStrategy(x, y, z);
-            });
-        }
-
-        function chooseStrategy(x, y, z) {
-            var oldStrobo = 0;
-            if (mode == 'coloraxis') {
-                self._dmx_wrapper.updateAllDevices(processValue(x), processValue(y), processValue(z));
-            } else if (mode == 'strobo') {
-                var strobo = Math.abs(x) + Math.abs(y) + Math.abs(z) - 4;
-                if (Math.abs(oldStrobo - strobo) > 5) {
-                    console.log(strobo)
-                    toggleStrobo();
-                }
-                oldStrobo = strobo;
+        this._tag.on('simpleKeyChange', (left, right) => {
+            if (left && right) {
+                console.log('Both: ');
+                return
             }
-        }
-
-        var toggle = true;
-
-        function toggleStrobo() {
-            if (toggle) {
-                self._dmx_wrapper.updateAllDevices(255, 255, 255);
-                toggle = false;
-            } else {
-                self._dmx_wrapper.updateAllDevices(0, 0, 0);
-                toggle = true;
+            if (left) {
+                console.log('Coloraxis: ' + left);
+                this._mode = 'coloraxis';
             }
-        }
+            if (right) {
+                console.log('Strobo: ' + right);
+                this._mode = 'strobo';
+            }
 
-        function processValue(val) {
-            return convertRange(Math.abs(val), [0, 10], [0, 255]);
-        }
-
-        function convertRange(value, r1, r2) {
-            return (value - r1[0]) * (r2[1] - r2[0]) / (r1[1] - r1[0]) + r2[0];
-        }
-
-        // when you get a button change, print it out:
-        function listenForButton() {
-            tag.on('simpleKeyChange', function (left, right) {
-                if (left) {
-                    console.log('Coloraxis: ' + left);
-                    mode = 'coloraxis';
-                }
-                if (right) {
-                    console.log('Strobo: ' + right);
-                    mode = 'strobo';
-                }
-                if (left && right) {
-                    console.log('Both: ');
-                }
-            });
-        }
-
-        // Now that you've defined all the functions, start the process:
-        connectAndSetUpMe();
+        });
 
     }
 
-    async onDisconnect() {
+    _chooseStrategy(x, y, z) {
+        if (this._mode === 'coloraxis') {
+            this._dmx_wrapper.updateAllDevices(this._processValue(x), this._processValue(y), this._processValue(z));
+
+        } else if (this._mode === 'strobo') {
+            const strobo = Math.abs(x) + Math.abs(y) + Math.abs(z) - 4;
+            if (Math.abs(strobo) > 5) {
+                console.log(strobo)
+                this._toggleStrobo();
+            }
+        }
+    }
+
+    _toggleStrobo() {
+        if (this._strobo_on) {
+            this._dmx_wrapper.updateAllDevices(255, 255, 255);
+            this._strobo_on = false;
+        } else {
+            this._dmx_wrapper.updateAllDevices(0, 0, 0);
+            this._strobo_on = true;
+        }
+    }
+
+    _processValue(val) {
+        return this._convertRange(Math.abs(val), [0, 10], [0, 255]);
+    }
+
+    _convertRange(value, r1, r2) {
+        return (value - r1[0]) * (r2[1] - r2[0]) / (r1[1] - r1[0]) + r2[0];
+    }
+
+    async _onDisconnect() {
         console.log('disconnected!');
         this._dmx_wrapper.updateAllDevices(0, 0, 0)
         await new Promise(r => setTimeout(r, 2000))
@@ -214,10 +192,9 @@ class SensortagDMX {
 const dmxWrapper = new DMXWrapper();
 // dmxWrapper.dmx.on('update', console.log);
 dmxWrapper.loadConfigPresetsAndSetup()
-const app = new SensortagDMX(dmxWrapper);
 console.log('starting discovery - running as root?')
 
 SensorTag.discover(function (tag) {
-    app.start(tag);
+    new SensortagDMX(tag, dmxWrapper).start();
 });
 
