@@ -21,6 +21,7 @@ class DMXWrapper {
 
     constructor() {
         this._dmx = new DMX()
+        this._updateRate = 100 //in ms
     }
 
     get dmx() {
@@ -71,11 +72,17 @@ class DMXWrapper {
      * @param red
      * @param green
      * @param blue
+     * @param updateCallback with toUpdate objact and universe string
      */
-    updateAllDevices(red, green, blue) {
+    updateAllDevices(red, green, blue, updateCallback) {
+        const defaultUpdateCallback = (toUpdate, universe) =>
+            this._dmx.update(universe, toUpdate);
+
+        updateCallback = updateCallback || defaultUpdateCallback
+
         for (const universe in config.universes) {
+            const toUpdate = {};
             for (const device in config.universes[universe].devices) {
-                const toUpdate = {};
                 const dev = config.universes[universe].devices[device];
                 const deviceType = DMX.devices[dev.type];
 
@@ -93,21 +100,48 @@ class DMXWrapper {
                 if (redPosition >= 0) {
                     toUpdate[bluePosition + dev.address] = blue;
                 }
-                this._dmx.update(universe, toUpdate);
-                //TODO alternative: use dmx.animation and add new value every second
-                //TODO use dmx-web rest interface
             }
+            updateCallback(toUpdate, universe);
         }
     }
+
+    updateAllDevicesSoft(red, green, blue) {
+        const callback = (toUpdate, universe) =>
+            new this._dmx.animation().add(toUpdate, this._updateRate).run(this._dmx.universes[universe])
+
+        this.updateAllDevices(red, green, blue, callback);
+    }
+
+    // TODO does not work well right now
+    // updateAllDevicesHttp(red, green, blue) {
+    //     const http = require('http');
+    //     const callback = (toUpdate, universe) => {
+    //         const data = JSON.stringify([{"to": toUpdate, duration: this._updateRate}]);
+    //         const options = {
+    //             hostname: 'localhost',
+    //             port: 8080,
+    //             path: '/animation/' + universe,
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'Content-Length': data.length
+    //             }
+    //         }
+    //         const request = http.request(options);
+    //         request.write(data);
+    //         request.end();
+    //     }
+    //     this.updateAllDevices(red, green, blue, callback);
+    // }
 
 }
 
 class SensortagDMX {
-
     constructor(tag, dmxWrapper) {
         this._tag = tag;
         this._dmxWrapper = dmxWrapper;
         this._srategy = new ColorAxisStrategy(this._dmxWrapper);
+        this._updateRate = this._dmxWrapper._updateRate || 100
     }
 
     start() {
@@ -119,7 +153,7 @@ class SensortagDMX {
 
     _setUpSensors() {
         this._tag.enableAccelerometer();
-        this._tag.setAccelerometerPeriod(100);
+        this._tag.setAccelerometerPeriod(this._updateRate);
         this._tag.notifyAccelerometer();
         this._tag.notifySimpleKey();
 
@@ -171,8 +205,17 @@ class Strategy {
 }
 
 class ColorAxisStrategy extends Strategy {
+    constructor(dmxWrapper) {
+        super(dmxWrapper);
+        //TODO add var to choose between 10 or 4 range
+    }
+
     call(x, y, z) {
-        this._dmxWrapper.updateAllDevices(this._processValue(x), this._processValue(y), this._processValue(z));
+        this._dmxWrapper.updateAllDevicesSoft(
+            this._processValue(x),
+            this._processValue(y),
+            this._processValue(z)
+        );
     }
 
     _processValue(val) {
