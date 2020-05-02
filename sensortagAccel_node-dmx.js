@@ -106,9 +106,8 @@ class SensortagDMX {
 
     constructor(tag, dmxWrapper) {
         this._tag = tag;
-        this._dmx_wrapper = dmxWrapper;
-        this._mode = 'coloraxis';
-        this._strobo_on = false;
+        this._dmxWrapper = dmxWrapper;
+        this._srategy = new ColorAxisStrategy(this._dmxWrapper);
     }
 
     start() {
@@ -125,10 +124,13 @@ class SensortagDMX {
         this._tag.notifySimpleKey();
 
         this._tag.on('accelerometerChange', (x, y, z) => {
-            console.log('\tx = %d G', x.toFixed(1));
-            console.log('\ty = %d G', y.toFixed(1));
-            console.log('\tz = %d G', z.toFixed(1));
-            this._chooseStrategy(x, y, z);
+            console.log({
+                x: x.toFixed(1) + ' G',
+                y: y.toFixed(1) + ' G',
+                z: z.toFixed(1) + ' G',
+            });
+
+            this._srategy.call(x, y, z);
         });
 
         this._tag.on('simpleKeyChange', (left, right) => {
@@ -138,38 +140,39 @@ class SensortagDMX {
             }
             if (left) {
                 console.log('Coloraxis: ' + left);
-                this._mode = 'coloraxis';
+                this._srategy = new ColorAxisStrategy(this._dmxWrapper);
             }
             if (right) {
                 console.log('Strobo: ' + right);
-                this._mode = 'strobo';
+                this._srategy = new StroboStrategy(this._dmxWrapper);
             }
 
         });
 
     }
 
-    _chooseStrategy(x, y, z) {
-        if (this._mode === 'coloraxis') {
-            this._dmx_wrapper.updateAllDevices(this._processValue(x), this._processValue(y), this._processValue(z));
+    async _onDisconnect() {
+        console.log('disconnected!');
+        this._dmxWrapper.updateAllDevices(0, 0, 0)
+        await new Promise(r => setTimeout(r, 2000))
+        process.exit(0); // TODO required?
+        // TODO maybe allow reconnecting?
+    }
+}
 
-        } else if (this._mode === 'strobo') {
-            const strobo = Math.abs(x) + Math.abs(y) + Math.abs(z) - 4;
-            if (Math.abs(strobo) > 5) {
-                console.log(strobo)
-                this._toggleStrobo();
-            }
-        }
+class Strategy {
+    constructor(dmxWrapper) {
+        this._dmxWrapper = dmxWrapper;
     }
 
-    _toggleStrobo() {
-        if (this._strobo_on) {
-            this._dmx_wrapper.updateAllDevices(255, 255, 255);
-            this._strobo_on = false;
-        } else {
-            this._dmx_wrapper.updateAllDevices(0, 0, 0);
-            this._strobo_on = true;
-        }
+    call(x, y, z) {
+        console.log('Please Choose Strategy.')
+    }
+}
+
+class ColorAxisStrategy extends Strategy {
+    call(x, y, z) {
+        this._dmxWrapper.updateAllDevices(this._processValue(x), this._processValue(y), this._processValue(z));
     }
 
     _processValue(val) {
@@ -179,15 +182,33 @@ class SensortagDMX {
     _convertRange(value, r1, r2) {
         return (value - r1[0]) * (r2[1] - r2[0]) / (r1[1] - r1[0]) + r2[0];
     }
+}
 
-    async _onDisconnect() {
-        console.log('disconnected!');
-        this._dmx_wrapper.updateAllDevices(0, 0, 0)
-        await new Promise(r => setTimeout(r, 2000))
-        process.exit(0); // TODO required?
-        // TODO maybe allow reconnecting?
+class StroboStrategy extends Strategy {
+    constructor(dmxWrapper) {
+        super(dmxWrapper);
+        this._strobo_on = false;
+    }
+
+    call(x, y, z) {
+        const strobo = Math.abs(x) + Math.abs(y) + Math.abs(z) - 4;
+        if (Math.abs(strobo) > 5) {
+            console.log(strobo)
+            this._toggleStrobo();
+        }
+    }
+
+    _toggleStrobo() {
+        if (this._strobo_on) {
+            this._dmxWrapper.updateAllDevices(255, 255, 255);
+            this._strobo_on = false;
+        } else {
+            this._dmxWrapper.updateAllDevices(0, 0, 0);
+            this._strobo_on = true;
+        }
     }
 }
+
 
 const dmxWrapper = new DMXWrapper();
 // dmxWrapper.dmx.on('update', console.log);
