@@ -28,7 +28,7 @@
 				"@abandonware/bluetooth-hci-socket": "^0.5.3-5",
 				"artnet": "1.0.x",
 				"commander": "^5.1.0",
-				"dmx": "^0.2.x",
+				"dmx": "^0.2.4",
 				"sensortag": "^1.2.3"
 		},
 		"licenses": [

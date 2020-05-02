@@ -3,9 +3,12 @@ const DMX = require('dmx')
 const program = require('commander');
 const SensorTag = require('sensortag');
 
+// patch dmx library with custom devices
+// DMX.devices = require('./node-dmx-custom-devices')
+
 
 //run as root for BLE
-console.log("Running Artnet Sensortag Example")
+console.log("Running DMX Sensortag Acceleration")
 
 program
     .version("0.0.1")
@@ -50,7 +53,10 @@ class DMXWrapper {
             const toUpdate = {};
             for (const device in config.universes[universe].devices) {
                 const dev = config.universes[universe].devices[device];
+                console.log(DMX.devices)
+                console.log(dev.type)
                 const deviceType = DMX.devices[dev.type];
+                console.log(deviceType)
 
                 const dimmerPosition = deviceType.channels.indexOf('dimmer');
                 if (dimmerPosition >= 0) {

@@ -15,7 +15,7 @@ Maybe replace bluetooth-hci-socket directory in node_modules by @abandonware/blu
 Or use older node version with e.g. docker (node 8 should work maybe)
 
 
-Run scripts as root on linux...
+Run scripts as root / Administrator! There will be no error message on missing privileges.
 
 
 ## Node-DMX Versions
@@ -41,6 +41,18 @@ After starting artnet-weblight, start your desired node-dmx script and press the
 * https://github.com/noble/noble#prerequisites
 * https://github.com/nodejs/node-gyp#installation
 * https://github.com/sandeepmistry/node-sensortag 
-* 
 
+## BLE on Windows
+https://github.com/noble/noble#windows
 
+See https://github.com/noble/node-bluetooth-hci-socket#windows
+or https://github.com/abandonware/node-bluetooth-hci-socket
+
+For windows, you have to exchange the driver temporarily (during usage of the node programs). 
+Additionally, you may want to add your device to the list on top of `node-bluetooth-hci-socket/lib/usb.js`.
+To find out your vid and pid, go to device manager and select your bluetooth device. 
+In the log messages of the device you should find these values. Or use zadig tool. 
+
+For rolling back: You may find your device under USB-Devices and not bluetooth devices.
+
+ 
