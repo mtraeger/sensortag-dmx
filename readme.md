@@ -1,8 +1,21 @@
-maybe replace bluetooth-hci-socket directory in node_modules by @abandonware/bluetooth-hci-socket -> copy their directory to root of node_modules... 
+# Sensortag DMX
 
-or use older node version with e.g. docker (node 8 should work maybe)
+Control your DMX light with a TI Sensortag. 
 
-run as root...
+
+## Hardware Info
+
+Developed with TI CC2541 SensorTag Dev Kit via sensortag node library.
+
+
+## Hints
+
+Maybe replace bluetooth-hci-socket directory in node_modules by @abandonware/bluetooth-hci-socket -> copy their directory to root of node_modules if installation of original bluetooth-hci-socket dependency fails... 
+
+Or use older node version with e.g. docker (node 8 should work maybe)
+
+
+Run scripts as root on linux...
 
 
 
