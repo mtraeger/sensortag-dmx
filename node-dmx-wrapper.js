@@ -17,6 +17,10 @@ class DMXWrapper {
         return this._dmx;
     }
 
+    setUpdateRate(milliseconds) {
+        this._updateRate = milliseconds
+    }
+
     static readConfig(path) {
         return JSON.parse(fs.readFileSync(path, 'utf8'))
     }
