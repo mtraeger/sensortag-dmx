@@ -22,7 +22,7 @@ SensorTag.discover(function (tag) {
     // when you disconnect from a tag, exit the program:
     tag.on('disconnect', function () {
         console.log('disconnected!');
-        artnet.set([0,0,0,0], function (err, res) {
+        artnet.set([0, 0, 0, 0], function (err, res) {
             artnet.close();
             process.exit(0);
         });
